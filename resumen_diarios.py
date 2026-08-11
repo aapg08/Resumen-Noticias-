@@ -14,8 +14,26 @@ from dotenv import load_dotenv
 # ==========================================
 load_dotenv()
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
-TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
+# TELEGRAM_CHAT_IDS = json.loads(os.getenv("TELEGRAM_CHAT_IDS", "[]"))
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+
+# 1. Leemos el valor del .env
+raw_ids = os.getenv("TELEGRAM_CHAT_IDS", "[]")
+
+# Intentamos parsear como JSON o como valores separados por coma
+try:
+  if raw_ids.startswith("["):
+    chat_ids = json.loads(raw_ids)
+  else:
+    chat_ids = [i.strip() for i in raw_ids.split(",") if i.strip()]
+except Exception as e:
+  print(
+      f"❌ Error al parsear TELEGRAM_CHAT_IDS desde el .env: {e} (Valor:"
+      f" '{raw_ids}')"
+  )
+
+# VERIFICACIÓN 1: ¿Se detectaron IDs?
+print(f"🔍 IDs cargados para envío: {chat_ids}")
 
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
@@ -305,28 +323,21 @@ def generar_resumen(indicadores, emol, df):
 def enviar_telegram(mensaje):
   url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
 
-  # Convertimos el formato Markdown basico (*texto*) a HTML (<b>texto</b>)
-  # para que Telegram no rebote por caracteres especiales
-  mensaje_html = mensaje.replace("**", "<b>").replace("**", "</b>")
+  for chat_id in chat_ids:
+    payload = {
+        "chat_id": chat_id,
+        "text": mensaje[:4000],
+        "parse_mode": "Markdown",
+    }
+    res = requests.post(url, json=payload, timeout=10)
 
-  payload = {
-      "chat_id": TELEGRAM_CHAT_ID,
-      "text": mensaje,
-      "parse_mode": "Markdown",
-  }
-
-  res = requests.post(url, json=payload, timeout=10)
-
-  if res.status_code == 200:
-    print("✅ Reporte enviado exitosamente a Telegram con formato!")
-  else:
-    # Reintento de seguridad en texto plano
-    payload.pop("parse_mode", None)
-    res_retry = requests.post(url, json=payload, timeout=10)
-    if res_retry.status_code == 200:
-      print("⚠️ Enviado a Telegram (en texto plano).")
+    if res.status_code == 200:
+      print(f"✅ Reporte enviado exitosamente a {chat_id}!")
     else:
-      print(f"❌ Error al enviar a Telegram: {res_retry.text}")
+      # Reintento sin formato por si falla el Markdown
+      payload.pop("parse_mode", None)
+      requests.post(url, json=payload, timeout=10)
+      print(f"⚠️ Enviado a {chat_id} (sin formato Markdown).")
 
 # ==========================================
 # 5. EJECUCIÓN
@@ -349,3 +360,5 @@ if __name__ == "__main__":
 
     print("Enviando reporte a tu celular...")
     enviar_telegram(r)
+
+    print("Terminando")
