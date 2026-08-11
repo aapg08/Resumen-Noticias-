@@ -13,7 +13,6 @@ from dotenv import load_dotenv
 # 1. CONFIGURACIÓN Y CREDENCIALES
 # ==========================================
 load_dotenv()
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
