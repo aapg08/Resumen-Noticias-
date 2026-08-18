@@ -1,11 +1,11 @@
 import requests
 import re
-import feedparser
+# import feedparser
 from bs4 import BeautifulSoup
-from datetime import datetime, timedelta
+# from datetime import datetime, timedelta
 import yfinance as yf
 import json
-import html
+# import html
 import os
 from dotenv import load_dotenv
 
@@ -307,15 +307,21 @@ def generar_resumen(indicadores, emol, df):
       "Content-Type": "application/json",
   }
   payload = {
-      "model": "llama-3.3-70b-versatile",
+      "model": "openai/gpt-oss-120b",
       "messages": [{"role": "user", "content": prompt}],
       "temperature": 0.3,
   }
 
-  res = requests.post(
-      url, headers=headers, data=json.dumps(payload), timeout=30
-  )
-  return res.json()["choices"][0]["message"]["content"]
+  res = requests.post(url, headers=headers, json=payload, timeout=60)
+
+  if res.status_code != 200:
+      raise RuntimeError(f"Groq respondió {res.status_code}: {res.text}")
+
+  data = res.json()
+  if "choices" not in data:
+      raise RuntimeError(f"Respuesta inesperada de Groq: {data}")
+
+  return data["choices"][0]["message"]["content"]
 
 # ==========================================
 # 4. ENVÍO A TELEGRAM
